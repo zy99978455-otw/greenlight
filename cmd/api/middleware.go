@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"expvar"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,6 +12,9 @@ import (
 
 	"github.com/zy99978455-otw/greenlight/internal/data"
 	"github.com/zy99978455-otw/greenlight/internal/validator"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"golang.org/x/time/rate"
 )
@@ -237,29 +239,43 @@ func (mw *metricsResponseWriter) Unwrap() http.ResponseWriter {
 	return mw.wrapped
 }
 
-func (app *application) metrics(next http.Handler) http.Handler {
-	var (
-		totalRequestsReceived           = expvar.NewInt("total_requests_received")
-		totalResponsesSent              = expvar.NewInt("total_responses_sent")
-		totalProcessingTimeMicroseconds = expvar.NewInt("total_processing_time_μs")
-
-		totalResponsesSentByStatus = expvar.NewMap("total_responses_sent_by_status")
+var (
+	// 1. 记录请求总数（带状态码标签）
+	httpRequestsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "greenlight_http_requests_total",
+			Help: "Total number of HTTP requests processed",
+		},
+		[]string{"status"},
 	)
 
+	// 2. 记录请求耗时直方图（强烈建议加上，这是算 P99 延迟的灵魂）
+	httpRequestDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "greenlight_http_request_duration_seconds",
+			Help:    "Histogram of response latency (seconds)",
+			Buckets: prometheus.DefBuckets,
+		},
+	)
+)
+
+func (app *application) metrics(next http.Handler) http.Handler {
+	// 函数内部干干净净，直接返回 Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		totalRequestsReceived.Add(1)
-
 		mw := newMetricsResponseWriter(w)
 
+		// 放行请求，执行后面的业务逻辑
 		next.ServeHTTP(mw, r)
 
-		totalResponsesSent.Add(1)
+		// 业务执行完毕后，计算耗时 (普罗米修斯标准单位是秒)
+		duration := time.Since(start).Seconds()
 
-		totalResponsesSentByStatus.Add(strconv.Itoa(mw.statusCode), 1)
-
-		duration := time.Since(start).Microseconds()
-		totalProcessingTimeMicroseconds.Add(duration)
+		// 🚀 核心关键点：给普罗米修斯喂数据！
+		// 每次请求结束，给对应状态码的计数器 +1
+		httpRequestsTotal.WithLabelValues(strconv.Itoa(mw.statusCode)).Inc()
+		// 记录本次请求的耗时
+		httpRequestDuration.Observe(duration)
 	})
 }
