@@ -1,0 +1,20 @@
+meta {
+  name: 激活用户
+  type: http
+  seq: 3
+}
+
+put {
+  url: http://localhost:4000/v1/users/activated
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {"token": "N4HXO4RSJKDHSFF6J5C3URTDAY"}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

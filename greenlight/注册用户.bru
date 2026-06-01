@@ -1,0 +1,20 @@
+meta {
+  name: 注册用户
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:4000/v1/users
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {"name": "Grace Smith", "email": "grace@examle.com", "password": "pa55word"}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

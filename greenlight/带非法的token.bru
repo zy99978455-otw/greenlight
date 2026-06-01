@@ -1,0 +1,20 @@
+meta {
+  name: 带非法的token
+  type: http
+  seq: 6
+}
+
+get {
+  url: http://localhost:4000/v1/healthcheck
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: NN2BDIZPOFL3I6S52OCWPULSE
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
