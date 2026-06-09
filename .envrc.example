@@ -1,0 +1,2 @@
+# 复制此文件并重命名为 .envrc，然后填入你本地的真实数据库密码
+export GREENLIGHT_DB_DSN="postgres://username:password@localhost/dbname?sslmode=disable"
